@@ -18,12 +18,12 @@ const logFile = "log.txt"
 
 func main() {
 	rootCmd := &cobra.Command{
-		Use: "calculator",
+		Use:   "calculator",
 		Short: "Calculator CLI",
 	}
 	rootCmd.AddCommand(readCmd())
 	rootCmd.AddCommand(clearCmd())
-	
+
 	err := rootCmd.Execute()
 	if err != nil {
 		panic(err)
@@ -96,53 +96,51 @@ func scanAndCalculate(s *bufio.Scanner, f *os.File, c *Calculator) error {
 	return nil
 }
 
+func runCalculator(mode string) error {
+	f, err := os.OpenFile(logFile, os.O_RDWR, 0664)
+	if err != nil {
+		return err
+	}
+	c := &Calculator{}
+	switch mode {
+	case "read":
+		fileScanner := bufio.NewScanner(f)
+		err = readLog(fileScanner, c)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("Value after read log: %f\n", c.value)
+	case "clear":
+		err = clearLog(f)
+		if err != nil {
+			return err
+		}
+		fmt.Println("Log cleared")
+	}
+	stdScanner := bufio.NewScanner(os.Stdin)
+	err = scanAndCalculate(stdScanner, f, c)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func readCmd() *cobra.Command {
 	return &cobra.Command{
-		Use: "read",
+		Use:   "read",
 		Short: "Read log and calculate",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f, err := os.OpenFile(logFile, os.O_RDWR, 0664)
-			if err != nil {
-				return err
-			}
-			fileScanner := bufio.NewScanner(f)
-			c := &Calculator{}
-			err = readLog(fileScanner, c)
-			if err != nil {
-				return err
-			}
-			fmt.Printf("Value after read log: %f\n", c.value)
-			stdScanner := bufio.NewScanner(os.Stdin)
-			err = scanAndCalculate(stdScanner, f, c)
-			if err != nil {
-				return err
-			}
-			return nil
+			return runCalculator("read")
 		},
 	}
 }
 
 func clearCmd() *cobra.Command {
 	return &cobra.Command{
-		Use: "clear",
+		Use:   "clear",
 		Short: "Clear log and calculate",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			f, err := os.OpenFile(logFile, os.O_RDWR, 0664)
-			if err != nil {
-				return err
-			}
-			err = clearLog(f)
-			if err != nil {
-				return err
-			}
-			fmt.Println("Log cleared")
-			c := &Calculator{}
-			stdScanner := bufio.NewScanner(os.Stdin)
-			err = scanAndCalculate(stdScanner, f, c)
-			if err != nil {
-				return err
-			}
-			return nil
+			return runCalculator("clear")
 		},
 	}
 }
