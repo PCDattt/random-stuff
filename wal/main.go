@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"strconv"
+
+	"github.com/spf13/cobra"
 )
 
 type Calculator struct {
@@ -15,44 +17,16 @@ type Calculator struct {
 const logFile = "log.txt"
 
 func main() {
-	scanner := bufio.NewScanner(os.Stdin)
-	c := &Calculator{}
-	f, err := os.OpenFile(logFile, os.O_RDWR, 0644)
+	rootCmd := &cobra.Command{
+		Use: "calculator",
+		Short: "Calculator CLI",
+	}
+	rootCmd.AddCommand(readCmd())
+	rootCmd.AddCommand(clearCmd())
+	
+	err := rootCmd.Execute()
 	if err != nil {
 		panic(err)
-	}
-	defer f.Close()
-	fmt.Println("1: Calculate")
-	fmt.Println("2: Read log and calculate")
-	fmt.Println("3: Clear log and calculate")
-	scanner.Scan()
-	line := scanner.Text()
-	switch line {
-	case "1":
-		err := scanAndCalculate(scanner, f, c)
-		if err != nil {
-			panic(err)
-		}
-	case "2":
-		fileScanner := bufio.NewScanner(f)
-		err := readLog(fileScanner, c)
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("Value after read log: %f\n", c.value)
-		err = scanAndCalculate(scanner, f, c)
-		if err != nil {
-			panic(err)
-		}
-	case "3":
-		err := clearLog(f)
-		if err != nil {
-			panic(err)
-		}
-		err = scanAndCalculate(scanner, f, c)
-		if err != nil {
-			panic(err)
-		}
 	}
 }
 
@@ -120,4 +94,55 @@ func scanAndCalculate(s *bufio.Scanner, f *os.File, c *Calculator) error {
 		}
 	}
 	return nil
+}
+
+func readCmd() *cobra.Command {
+	return &cobra.Command{
+		Use: "read",
+		Short: "Read log and calculate",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			f, err := os.OpenFile(logFile, os.O_RDWR, 0664)
+			if err != nil {
+				return err
+			}
+			fileScanner := bufio.NewScanner(f)
+			c := &Calculator{}
+			err = readLog(fileScanner, c)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Value after read log: %f\n", c.value)
+			stdScanner := bufio.NewScanner(os.Stdin)
+			err = scanAndCalculate(stdScanner, f, c)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
+}
+
+func clearCmd() *cobra.Command {
+	return &cobra.Command{
+		Use: "clear",
+		Short: "Clear log and calculate",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			f, err := os.OpenFile(logFile, os.O_RDWR, 0664)
+			if err != nil {
+				return err
+			}
+			err = clearLog(f)
+			if err != nil {
+				return err
+			}
+			fmt.Println("Log cleared")
+			c := &Calculator{}
+			stdScanner := bufio.NewScanner(os.Stdin)
+			err = scanAndCalculate(stdScanner, f, c)
+			if err != nil {
+				return err
+			}
+			return nil
+		},
+	}
 }
